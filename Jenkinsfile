@@ -1,7 +1,7 @@
 pipeline {
   agent any
   environment {
-    TEST_HOST = "192.168.56.102"
+    TEST_HOST = "<NEW_TEST_IP>"
     TEST_USER = "test"
     SSH_OPTS  = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
   }
