@@ -2,6 +2,7 @@
 - name: Build and deploy PHP app on TEST
   hosts: test
   become: yes
+  tags: deploy
   vars:
     repo_url: "https://github.com/prathikp1403/projCert.git"
     workdir: "/opt/projCert"
@@ -28,6 +29,10 @@
         version: "{{ branch }}"
         force: yes
 
+    - name: Remove dangling Docker images
+      command: docker image prune -f
+      ignore_errors: yes
+
     - name: Build Docker image on TEST
       shell: docker build -t {{ image_name }} -f docker/Dockerfile .
       args:
@@ -37,5 +42,13 @@
       shell: docker rm -f {{ container_name }} || true
 
     - name: Run new container from built image
+    - name: Verify container is running
+      command: docker ps --filter "name={{ container_name }}" --filter "status=running" --format "{{ {{.Names}} }}"
+      register: running_containers
+
+    - name: Display container status
+      debug:
+        msg: "Running container(s): {{ running_containers.stdout_lines }}"
+
       shell: docker run -d --restart=always --name {{ container_name }} -p 80:80 {{ image_name }}
 
