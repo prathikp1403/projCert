@@ -1,0 +1,41 @@
+---
+- name: Build and deploy PHP app on TEST
+  hosts: test
+  become: yes
+  vars:
+    repo_url: "https://github.com/prathikp1403/projCert.git"
+    workdir: "/opt/projCert"
+    image_name: "walletapp:latest"
+    container_name: "wallet"
+    branch: "main"   # change to "master" only if your repo uses master
+  tasks:
+    - name: Install git if missing
+      apt:
+        name: git
+        state: present
+        update_cache: yes
+
+    - name: Ensure workdir exists
+      file:
+        path: "{{ workdir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Clone or update repo (selected branch)
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ workdir }}"
+        version: "{{ branch }}"
+        force: yes
+
+    - name: Build Docker image on TEST
+      shell: docker build -t {{ image_name }} -f docker/Dockerfile .
+      args:
+        chdir: "{{ workdir }}"
+
+    - name: Stop old container if exists
+      shell: docker rm -f {{ container_name }} || true
+
+    - name: Run new container from built image
+      shell: docker run -d --restart=always --name {{ container_name }} -p 80:80 {{ image_name }}
+
