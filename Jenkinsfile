@@ -5,7 +5,6 @@ pipeline {
     TEST_USER = "test"
     SSH_OPTS  = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
   }
-  options { timestamps(); ansiColor('xterm'); }
   triggers { pollSCM('H/2 * * * *') } // auto build on pushes to master (~every 2 min)
 
   stages {
