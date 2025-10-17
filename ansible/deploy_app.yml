@@ -2,53 +2,65 @@
 - name: Build and deploy PHP app on TEST
   hosts: test
   become: yes
-  tags: deploy
   vars:
     repo_url: "https://github.com/prathikp1403/projCert.git"
     workdir: "/opt/projCert"
     image_name: "walletapp:latest"
     container_name: "wallet"
-    branch: "main"   # change to "master" only if your repo uses master
+    repo_branch: "master"   # change to "main" if your repo uses main
+
   tasks:
-    - name: Install git if missing
-      apt:
-        name: git
+    - name: Ensure prerequisites present (git + docker client)
+      ansible.builtin.apt:
+        name:
+          - git
+          - docker.io
         state: present
         update_cache: yes
 
     - name: Ensure workdir exists
-      file:
+      ansible.builtin.file:
         path: "{{ workdir }}"
         state: directory
         mode: '0755'
 
-    - name: Clone or update repo (selected branch)
-      git:
+    - name: Clone/update repo (selected branch)
+      ansible.builtin.git:
         repo: "{{ repo_url }}"
         dest: "{{ workdir }}"
-        version: "{{ branch }}"
-        force: yes
-
-    - name: Remove dangling Docker images
-      command: docker image prune -f
-      ignore_errors: yes
+        version: "{{ repo_branch }}"
+        force: true
 
     - name: Build Docker image on TEST
-      shell: docker build -t {{ image_name }} -f docker/Dockerfile .
+      ansible.builtin.command:
+        argv:
+          - docker
+          - build
+          - -t
+          - "{{ image_name }}"
+          - -f
+          - docker/Dockerfile
+          - .
       args:
         chdir: "{{ workdir }}"
 
     - name: Stop old container if exists
-      shell: docker rm -f {{ container_name }} || true
+      ansible.builtin.command:
+        argv: [docker, rm, -f, "{{ container_name }}"]
+      ignore_errors: yes
 
-    - name: Run new container from built image
-    - name: Verify container is running
-      command: docker ps --filter "name={{ container_name }}" --filter "status=running" --format "{{ {{.Names}} }}"
-      register: running_containers
-
-    - name: Display container status
-      debug:
-        msg: "Running container(s): {{ running_containers.stdout_lines }}"
-
-      shell: docker run -d --restart=always --name {{ container_name }} -p 80:80 {{ image_name }}
-
+    - name: Run new container from built image (Apache foreground)
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - -d
+          - --restart=always
+          - --name
+          - "{{ container_name }}"
+          - -p
+          - "80:80"
+          - "{{ image_name }}"
+          - apache2ctl
+          - -D
+          - FOREGROUND
